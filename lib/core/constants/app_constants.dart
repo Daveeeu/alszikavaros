@@ -9,4 +9,8 @@ class AppConstants {
   // Enable with: flutter run --dart-define=USE_MOCK_BACKEND=true
   static const bool useMockBackend =
       bool.fromEnvironment('USE_MOCK_BACKEND', defaultValue: false);
+
+  // Enable with: flutter run --dart-define=ENABLE_NETWORK_LOGS=true
+  static const bool enableNetworkLogs =
+      bool.fromEnvironment('ENABLE_NETWORK_LOGS', defaultValue: false);
 }

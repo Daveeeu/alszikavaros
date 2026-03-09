@@ -48,3 +48,45 @@ To also remove database volume:
 ```bash
 docker compose down -v
 ```
+
+## Run Flutter app against Docker backend
+
+The mobile app reads API and WebSocket endpoints via `--dart-define`.
+
+### Android emulator (uses host loopback alias)
+
+```bash
+flutter run \
+  --dart-define=API_HOST=10.0.2.2 \
+  --dart-define=API_PORT=8080
+```
+
+If your compose API is on a different host port:
+
+```bash
+flutter run \
+  --dart-define=API_HOST=10.0.2.2 \
+  --dart-define=API_PORT=18080
+```
+
+### iOS simulator
+
+```bash
+flutter run \
+  --dart-define=API_HOST=localhost \
+  --dart-define=API_PORT=8080
+```
+
+### Physical phone on same Wi-Fi
+
+Use your computer LAN IP:
+
+```bash
+flutter run \
+  --dart-define=API_HOST=192.168.1.50 \
+  --dart-define=API_PORT=8080
+```
+
+Optional full overrides:
+- `API_BASE_URL` (e.g. `http://192.168.1.50:8080`)
+- `WS_BASE_URL` (e.g. `ws://192.168.1.50:8080/ws`)

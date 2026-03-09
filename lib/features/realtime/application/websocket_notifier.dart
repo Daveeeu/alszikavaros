@@ -7,9 +7,8 @@ import '../data/mock/mock_websocket_service.dart';
 import '../data/websocket_service.dart';
 
 final webSocketServiceProvider = Provider<WebSocketService>((ref) {
-  final service = AppConstants.useMockBackend
-      ? MockWebSocketService()
-      : WebSocketService();
+  final service =
+      AppConstants.useMockBackend ? MockWebSocketService() : WebSocketService();
 
   ref.onDispose(service.dispose);
   return service;
@@ -40,11 +39,19 @@ class WebSocketNotifier extends StateNotifier<WebSocketState> {
   StreamSubscription<Map<String, dynamic>>? _eventSubscription;
   StreamSubscription<WebSocketConnectionStatus>? _statusSubscription;
 
-  Future<void> connect(String roomCode) async {
+  Future<void> connect(
+    String roomCode, {
+    String? sessionToken,
+    String? playerId,
+  }) async {
     if (roomCode.trim().isEmpty) return;
 
     state = state.copyWith(activeRoomCode: roomCode.trim());
-    await _service.connect(roomCode.trim());
+    await _service.connect(
+      roomCode.trim(),
+      sessionToken: sessionToken,
+      playerId: playerId,
+    );
   }
 
   Future<void> disconnect() async {

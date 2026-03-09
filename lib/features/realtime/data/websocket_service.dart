@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 import '../../../core/constants/api_constants.dart';
@@ -27,12 +28,18 @@ class WebSocketService {
   Stream<WebSocketConnectionStatus> get status => _statusController.stream;
 
   String? _roomCode;
+  String? _sessionToken;
+  String? _playerId;
   bool _manualDisconnect = false;
   int _reconnectAttempt = 0;
   Timer? _reconnectTimer;
   bool _disposed = false;
 
-  Future<void> connect(String roomCode) async {
+  Future<void> connect(
+    String roomCode, {
+    String? sessionToken,
+    String? playerId,
+  }) async {
     if (_disposed) return;
 
     final normalizedRoomCode = roomCode.trim();
@@ -45,6 +52,9 @@ class WebSocketService {
 
     _manualDisconnect = false;
     _roomCode = normalizedRoomCode;
+    _sessionToken =
+        sessionToken?.trim().isEmpty ?? true ? null : sessionToken?.trim();
+    _playerId = playerId?.trim().isEmpty ?? true ? null : playerId?.trim();
     _reconnectAttempt = 0;
 
     await _openConnection(isReconnect: false);
@@ -62,10 +72,18 @@ class WebSocketService {
 
     await _closeChannel();
 
+    final uri = Uri.parse(ApiConstants.wsBaseUrl).replace(
+      queryParameters: <String, String>{
+        'roomCode': _roomCode!,
+        if (_sessionToken != null) 'sessionToken': _sessionToken!,
+        if (_playerId != null) 'playerId': _playerId!,
+      },
+    );
+
     try {
-      final uri = Uri.parse('${ApiConstants.wsBaseUrl}?roomCode=$_roomCode');
       final channel = WebSocketChannel.connect(uri);
       _channel = channel;
+      await channel.ready;
 
       _channelSubscription = channel.stream.listen(
         _onMessage,
@@ -76,7 +94,10 @@ class WebSocketService {
 
       _statusController.add(WebSocketConnectionStatus.connected);
       _reconnectAttempt = 0;
-    } catch (_) {
+    } catch (error) {
+      if (kDebugMode && AppConstants.enableNetworkLogs) {
+        debugPrint('[WS] connect failed uri=$uri error=$error');
+      }
       _statusController.add(WebSocketConnectionStatus.error);
       _scheduleReconnect();
     }

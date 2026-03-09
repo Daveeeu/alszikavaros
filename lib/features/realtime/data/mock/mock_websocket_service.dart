@@ -20,7 +20,11 @@ class MockWebSocketService extends WebSocketService {
   Stream<WebSocketConnectionStatus> get status => _statusController.stream;
 
   @override
-  Future<void> connect(String roomCode) async {
+  Future<void> connect(
+    String roomCode, {
+    String? sessionToken,
+    String? playerId,
+  }) async {
     if (_disposed) return;
 
     _roomCode = roomCode.trim();

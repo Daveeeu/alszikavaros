@@ -9,6 +9,7 @@ import '../../../core/network/app_dio_client.dart';
 import '../../room/data/room_api_provider.dart';
 import '../../room/data/room_api_service.dart';
 import '../../room/domain/models/player.dart';
+import '../../session/application/session_notifier.dart';
 import '../data/game_api_service.dart';
 import '../data/mock/mock_game_api_service.dart';
 import '../domain/models/final_role_entry.dart';
@@ -20,7 +21,8 @@ final gameApiServiceProvider = Provider<GameApiService>((ref) {
     return MockGameApiService();
   }
 
-  return GameApiService(AppDioClient().dio);
+  final sessionToken = ref.watch(sessionNotifierProvider).sessionToken;
+  return GameApiService(AppDioClient(sessionToken: sessionToken).dio);
 });
 
 final gameNotifierProvider =
@@ -88,7 +90,8 @@ class GameNotifier extends StateNotifier<GameState> {
         phase: snapshot.game.phase,
         dayNumber: snapshot.game.dayNumber,
         winner: snapshot.game.winner,
-        alivePlayers: snapshot.players.where((player) => player.isAlive).toList(),
+        alivePlayers:
+            snapshot.players.where((player) => player.isAlive).toList(),
         latestVoteResult: snapshot.latestVoteResult,
         finalRoles: snapshot.finalRoles,
         error: '',
@@ -106,7 +109,8 @@ class GameNotifier extends StateNotifier<GameState> {
 
     final roomCode = state.roomCode;
     if (roomCode == null || roomCode.isEmpty) {
-      state = state.copyWith(restartError: 'Hiányzó szobakód, nem indítható újra.');
+      state =
+          state.copyWith(restartError: 'Hiányzó szobakód, nem indítható újra.');
       return;
     }
 

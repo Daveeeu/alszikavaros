@@ -17,6 +17,7 @@ import '../../../../core/router/route_paths.dart';
 import '../../../realtime/application/websocket_notifier.dart';
 import '../../application/room_notifier.dart';
 import '../../data/room_api_provider.dart';
+import '../../../session/application/session_notifier.dart';
 
 class LobbyScreen extends ConsumerStatefulWidget {
   const LobbyScreen({required this.roomCode, super.key});
@@ -43,7 +44,12 @@ class _LobbyScreenState extends ConsumerState<LobbyScreen> {
     super.initState();
     Future<void>.microtask(() async {
       await _reloadRoomState();
-      await ref.read(webSocketNotifierProvider.notifier).connect(widget.roomCode);
+      final session = ref.read(sessionNotifierProvider);
+      await ref.read(webSocketNotifierProvider.notifier).connect(
+            widget.roomCode,
+            sessionToken: session.sessionToken,
+            playerId: session.playerId,
+          );
       _pollingTimer = Timer.periodic(
         const Duration(seconds: 3),
         (_) => _reloadRoomState(silent: true),
@@ -66,27 +72,30 @@ class _LobbyScreenState extends ConsumerState<LobbyScreen> {
     }
 
     try {
-      final response = await ref.read(roomApiServiceProvider).getRoom(widget.roomCode);
-      final data = response.data;
-      if (data is! Map<String, dynamic>) {
+      final response =
+          await ref.read(roomApiServiceProvider).getRoom(widget.roomCode);
+      final payload = _extractPayload(response.data);
+      if (payload == null) {
         throw Exception('invalid payload');
       }
+      final roomData = _extractRoomMap(payload);
 
-      final statusRaw = (data['status'] as String? ?? 'waiting').toLowerCase();
+      final statusRaw =
+          (roomData['status'] as String? ?? 'waiting').toLowerCase();
       final status = switch (statusRaw) {
         'in_game' => RoomStatus.inGame,
         'finished' => RoomStatus.finished,
         _ => RoomStatus.waiting,
       };
 
-      final players = (data['players'] as List<dynamic>? ?? <dynamic>[])
+      final players = (roomData['players'] as List<dynamic>? ?? <dynamic>[])
           .whereType<Map<String, dynamic>>()
           .map(_LobbyPlayer.fromMap)
           .toList(growable: false);
 
       setState(() {
         _roomStatus = status;
-        _hostPlayerId = data['hostPlayerId'] as String?;
+        _hostPlayerId = roomData['hostPlayerId'] as String?;
         _players = players;
         _isLoading = false;
         _error = '';
@@ -108,9 +117,10 @@ class _LobbyScreenState extends ConsumerState<LobbyScreen> {
     });
 
     try {
-      final response = await ref.read(roomApiServiceProvider).startGame(widget.roomCode);
-      final data = response.data;
-      final gameId = data is Map<String, dynamic> ? data['gameId'] as String? : null;
+      final response =
+          await ref.read(roomApiServiceProvider).startGame(widget.roomCode);
+      final payload = _extractPayload(response.data);
+      final gameId = payload?['gameId'] as String?;
 
       if (gameId == null || gameId.isEmpty) {
         throw Exception('missing game id');
@@ -124,6 +134,20 @@ class _LobbyScreenState extends ConsumerState<LobbyScreen> {
         _error = 'Nem sikerült elindítani a játékot.';
       });
     }
+  }
+
+  Map<String, dynamic>? _extractPayload(dynamic data) {
+    if (data is! Map<String, dynamic>) return null;
+    if (data['data'] is Map<String, dynamic>) {
+      return data['data'] as Map<String, dynamic>;
+    }
+    return data;
+  }
+
+  Map<String, dynamic> _extractRoomMap(Map<String, dynamic> payload) {
+    final room = payload['room'];
+    if (room is Map<String, dynamic>) return room;
+    return payload;
   }
 
   @override
