@@ -20,3 +20,5 @@ build/
 
 # Misc
 coverage/
+.env
+.env.docker

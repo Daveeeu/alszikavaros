@@ -1,0 +1,43 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: alszikavaros-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-alszikavaros}
+      POSTGRES_USER: ${POSTGRES_USER:-alszikavaros}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-alszikavaros}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-alszikavaros} -d ${POSTGRES_DB:-alszikavaros}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: alszikavaros-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      APP_ENV: ${APP_ENV:-docker}
+      APP_PORT: ${APP_PORT:-8080}
+      DATABASE_URL: postgres://${POSTGRES_USER:-alszikavaros}:${POSTGRES_PASSWORD:-alszikavaros}@postgres:5432/${POSTGRES_DB:-alszikavaros}?sslmode=disable
+      WS_ALLOWED_ORIGINS: ${WS_ALLOWED_ORIGINS:-*}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-*}
+      SESSION_SECRET: ${SESSION_SECRET:-change-me}
+      DB_MAX_OPEN_CONNS: ${DB_MAX_OPEN_CONNS:-25}
+      DB_MAX_IDLE_CONNS: ${DB_MAX_IDLE_CONNS:-10}
+      DB_CONN_MAX_LIFETIME_MIN: ${DB_CONN_MAX_LIFETIME_MIN:-30}
+    ports:
+      - "${HOST_API_PORT:-8080}:${APP_PORT:-8080}"
+
+volumes:
+  postgres_data:
